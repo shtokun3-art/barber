@@ -1,0 +1,154 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String      @id @default(uuid())
+  name            String
+  phone           String      @unique
+  email           String?     @unique
+  color           String?
+  profileImage    String?     // URL da imagem de perfil
+  password        String
+  role            String      @default("client")
+  tokenId         String?     @unique
+  tokenExpiration DateTime?
+  hasRatedOnGoogle Boolean    @default(false) // Controla se já avaliou no Google Maps
+  lastRatingModalShown DateTime? // Última vez que o modal de avaliação foi exibido
+  isSessionActive Boolean     @default(false) // Controla se há sessão ativa (impede login múltiplo)
+  createdAt       DateTime    @default(now())
+  
+  // Relacionamentos
+  queue           Queue[]
+  history         History[]
+}
+
+model Barber {
+  id              String   @id @default(uuid())
+  name            String
+  status          String   @default("active") // active/inactive - controla se o barbeiro está ativo
+  queueStatus     String   @default("open")   // open/closed - controla se a fila aceita novos clientes
+  commissionRate  Float    @default(0.30) // Porcentagem de comissão (30% por padrão)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relacionamentos
+  queue     Queue[]
+  history   History[]
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String 
+  price       Float     
+  averageTime Int      
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relacionamentos
+  queueServices   QueueService[]
+  historyServices HistoryService[]
+}
+
+model Queue {
+  id        String   @id @default(uuid())
+  userId    String  
+  barberId  String   
+  status    String   @default("waiting")
+  position  Int      @default(0) 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relacionamentos
+  user          User           @relation(fields: [userId], references: [id])
+  barber        Barber         @relation(fields: [barberId], references: [id])
+  queueServices QueueService[]
+}
+
+model QueueService {
+  id        String   @id @default(uuid())
+  queueId   String 
+  serviceId String   
+  createdAt DateTime @default(now())
+  
+  // Relacionamentos
+  queue     Queue    @relation(fields: [queueId], references: [id])
+  service   Service  @relation(fields: [serviceId], references: [id])
+}
+
+model History {
+  id            String   @id @default(uuid())
+  userId        String  
+  barberId      String  
+  totalValue    Float           
+  paymentMethod String   @default("cash") // "cash", "credit_card", "debit_card", "pix"
+  installments  Int      @default(1) // Número de parcelas (1x, 2x, 3x)
+  feeRate       Float    @default(0.0) // Taxa aplicada (0.0 a 1.0)
+  feeAmount     Float    @default(0.0) // Valor da taxa em reais
+  netAmount     Float?   // Valor líquido após desconto da taxa (nullable para dados antigos)
+  createdAt     DateTime @default(now())
+  
+  // Relacionamentos
+  user       User     @relation(fields: [userId], references: [id])
+  barber     Barber   @relation(fields: [barberId], references: [id])
+  services   HistoryService[]
+  items      HistoryItem[]
+}
+
+model HistoryService {
+  id        String   @id @default(uuid())
+  historyId String
+  serviceId String
+  isExtra   Boolean  @default(false) // Indica se é um serviço extra
+  createdAt DateTime @default(now())
+  
+  // Relacionamentos
+  history   History  @relation(fields: [historyId], references: [id])
+  service   Service  @relation(fields: [serviceId], references: [id])
+}
+
+model Items {
+  id String @id @default(uuid())
+  item String
+  value Float
+  qtd Int
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relacionamentos
+  historyItems HistoryItem[]
+}
+
+model HistoryItem {
+  id        String   @id @default(uuid())
+  historyId String
+  itemId    String
+  quantity  Int
+  unitPrice Float
+  totalPrice Float
+  createdAt DateTime @default(now())
+  
+  // Relacionamentos
+  history   History  @relation(fields: [historyId], references: [id])
+  item      Items    @relation(fields: [itemId], references: [id])
+}
+
+model Settings {
+  id                String   @id @default(uuid())
+  commissionRate    Float    @default(0.15) // Taxa de comissão
+  creditCardFee     Float    @default(0.035) // Taxa cartão de crédito à vista
+  creditCardFee2x   Float    @default(0.045) // Taxa cartão de crédito 2x
+  creditCardFee3x   Float    @default(0.055) // Taxa cartão de crédito 3x
+  debitCardFee      Float    @default(0.025) // Taxa cartão de débito
+  cashFee           Float    @default(0.0) // Taxa dinheiro
+  pixFee            Float    @default(0.0) // Taxa PIX
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
