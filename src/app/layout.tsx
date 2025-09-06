@@ -6,9 +6,6 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { UsersProvider } from "@/lib/context/UserContext";
 import { LogoutWrapper } from "./_components/logoutWrapper";
 
-// Inicializar serviços do servidor
-import "@/lib/startup";
-
 
 const inter = Inter({
   variable: "--font-inter",
